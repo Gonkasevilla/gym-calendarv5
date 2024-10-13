@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calendario de Entrenamiento Personalizado</title>
+  <script src="https://cdn.jsdelivr.net/npm/tailwindcss@3.0.24/dist/tailwind.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+      min-height: 100vh;
+      color: #333;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+      background-color: white;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      max-width: 500px;
+      width: 90%;
+    }
+
+    .modal.active {
+      display: block;
+    }
+
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 5;
+    }
+
+    .modal-overlay.active {
+      display: block;
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 1rem;
+    }
+
+    .calendar-header {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .day {
+      background-color: #fff;
+      border-radius: 12px;
+      height: 100px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s ease, background-color 0.3s ease;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      cursor: pointer;
+    }
+
+    .day.completed-day {
+      background-color: #d4edda;
+      transform: scale(1.05);
+    }
+
+    .day:hover {
+      background-color: #f8d7da;
+      transform: scale(1.05);
+    }
+
+    .calendar-header div {
+      font-weight: 600;
+      color: #71717a;
+    }
+
+    .btn-entendido {
+      background-color: #34d399;
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      margin-top: 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .btn-entendido:hover {
+      background-color: #059669;
+      transform: scale(1.05);
+    }
+
+    button {
+      font-family: 'Poppins', sans-serif;
+      transition: all 0.3s ease;
+      background-color: #6c5ce7;
+      color: white;
+      padding: 0.75rem 1.25rem;
+      border-radius: 12px;
+      cursor: pointer;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    button:hover {
+      background-color: #341f97;
+      transform: translateY(-2px);
+    }
+
+    .loading-message {
+      display: none;
+      font-size: 1.25rem;
+      font-weight: bold;
+      text-align: center;
+      margin-top: 1rem;
+      color: #4ade80;
+    }
+
+    .checkbox-group {
+      display: flex;
+      flex-wrap: wrap;
+    }
+
+    .checkbox-group label {
+      flex: 1 1 40%;
+      margin-bottom: 8px;
+      cursor: pointer;
+    }
+
+    .dynamic-inputs {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .exercise-image {
+      width: 100%;
+      max-width: 200px;
+      margin: 0 auto;
+      display: block;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 20px;
+      background-color: #e5e7eb;
+      border-radius: 10px;
+      margin: 1rem 0;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background-color: #34d399;
+      width: 0;
+      border-radius: 10px;
+      transition: width 0.3s ease;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-purple-100 to-purple-300 min-h-screen flex flex-col items-center justify-center">
+
+  <!-- Formulario como modal -->
+  <div id="formModal" class="modal active">
+    <h2 class="text-3xl font-bold mb-4 text-purple-700">Crear Rutina Personalizada</h2>
+    <form id="customRoutineForm">
+      <div class="mb-4">
+        <label class="block text-lg font-semibold mb-2" for="name">Nombre</label>
+        <input type="text" id="name" class="w-full p-2 border rounded-lg" placeholder="Tu nombre" required>
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-lg font-semibold mb-2">Zonas del cuerpo</label>
+        <div class="checkbox-group">
+          <label><input type="checkbox" value="Piernas" class="zone-checkbox"> Piernas</label>
+          <label><input type="checkbox" value="Brazos" class="zone-checkbox"> Brazos</label>
+          <label><input type="checkbox" value="Core" class="zone-checkbox"> Core</label>
+          <label><input type="checkbox" value="Espalda" class="zone-checkbox"> Espalda</label>
+          <label><input type="checkbox" value="Glúteos" class="zone-checkbox"> Glúteos</label>
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-lg font-semibold mb-2" for="difficulty">Dificultad</label>
+        <select id="difficulty" class="w-full p-2 border rounded-lg" required>
+          <option value="Muy baja">Muy baja</option>
+          <option value="Baja">Baja</option>
+          <option value="Media">Media</option>
+          <option value="Alta">Alta</option>
+          <option value="Muy alta">Muy alta</option>
+        </select>
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-lg font-semibold mb-2" for="routineType">Modalidad de entrenamiento</label>
+        <select id="routineType" class="w-full p-2 border rounded-lg" required>
+          <option value="Fuerza">Fuerza</option>
+          <option value="Cardio">Cardio</option>
+          <option value="HIIT">HIIT</option>
+        </select>
+      </div>
+
+      <div class="text-center mb-4">
+        <button type="button" id="importRoutineFormBtn" class="bg-yellow-500 text-white px-6 py-3 rounded-full hover:bg-yellow-600 transition font-bold">
+          IMPORTAR RUTINA
+        </button>
+      </div>
+
+      <div class="text-center">
+        <button type="submit" class="bg-purple-600 text-white px-6 py-3 rounded-full hover:bg-purple-700 transition font-bold">
+          PREPARAR TABLA DE EJERCICIOS
+        </button>
+        <div id="loadingMessage" class="loading-message">Preparando tabla 💪</div>
+      </div>
+    </form>
+  </div>
+
+  <div id="modalOverlay" class="modal-overlay active"></div>
+
+  <!-- Calendario -->
+  <div class="container mx-auto p-6" style="display: none;" id="calendarContainer">
+    <h1 id="calendarTitle" class="text-5xl font-extrabold text-center mb-10 text-purple-700">💪 Calendario de Entrenamiento de [Nombre]</h1>
+
+    <div class="flex justify-center mb-8">
+      <button id="prevMonth">⬅️ Mes Anterior</button>
+      <span id="currentMonth" class="text-3xl font-bold mx-8 text-purple-900"></span>
+      <button id="nextMonth">Mes Siguiente ➡️</button>
+    </div>
+
+    <div class="calendar-header text-center text-xl">
+      <div>Lunes</div>
+      <div>Martes</div>
+      <div>Miércoles</div>
+      <div>Jueves</div>
+      <div>Viernes</div>
+      <div>Sábado</div>
+      <div>Domingo</div>
+    </div>
+
+    <div id="calendar" class="calendar-grid"></div>
+
+    <!-- Botón para crear nueva rutina -->
+    <div class="text-center mt-8">
+      <button id="newRoutineBtn">Preparar una rutina diferente</button>
+    </div>
+
+    <!-- Botones para exportar e importar rutinas -->
+    <div class="flex justify-center mt-8 gap-4">
+      <button id="exportRoutineBtn" class="bg-blue-600 text-white px-6 py-3 rounded-full hover:bg-blue-700 transition font-bold">
+        Exportar rutina
+      </button>
+      <input type="file" id="importRoutineInput" style="display: none;">
+      <button id="importRoutineBtn" class="bg-yellow-500 text-white px-6 py-3 rounded-full hover:bg-yellow-600 transition font-bold">
+        Importar rutina
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal para cualquier día -->
+  <div id="exerciseModal" class="modal">
+    <h2 class="text-3xl font-bold mb-4 text-purple-700">🏋️‍♀️ Ejercicios del Día</h2>
+    <div id="exerciseList" class="text-lg mb-4"></div>
+    <div class="progress-bar">
+      <div class="progress-bar-fill" id="progressBarFill"></div>
+    </div>
+    <div id="exerciseTimer" class="text-3xl font-bold mt-4 text-center" style="display: none;">30:00</div>
+    <div id="currentExerciseNumber" class="text-2xl font-semibold mt-4 text-center"></div>
+    <div class="flex gap-4 mt-4">
+      <button id="startExerciseBtn" class="bg-green-500 text-white px-6 py-3 rounded-full hover:bg-green-600 transition font-bold">INICIAR EJERCICIOS</button>
+      <button id="pauseExerciseBtn" class="bg-yellow-500 text-white px-6 py-3 rounded-full hover:bg-yellow-600 transition font-bold" style="display: none;">PAUSA</button>
+      <button id="skipExerciseBtn" class="bg-red-500 text-white px-6 py-3 rounded-full hover:bg-red-600 transition font-bold" style="display: none;">SKIP</button>
+      <button id="endExerciseBtn" class="bg-purple-600 text-white px-6 py-3 rounded-full hover:bg-purple-700 transition font-bold" style="display: none;">TERMINAR EJERCICIO</button>
+      <button class="btn-entendido">ENTENDIDO</button>
+    </div>
+  </div>
+
+  <script>
+    const exercises = {
+      "Burpees": {
+        description: "Desde la posición de pie, baja a plancha, regresa y salta hacia arriba.",
+        difficulty: "Alta",
+        intensity: "Muy alta",
+        zone: "Cuerpo completo",
+        imageUrl: "https://example.com/burpees.jpg"
+      },
+      "Mountain climbers": {
+        description: "En plancha, lleva las rodillas al pecho rápidamente.",
+        difficulty: "Media",
+        intensity: "Alta",
+        zone: "Core",
+        imageUrl: "https://example.com/mountain_climbers.jpg"
+      },
+      "Jumping jacks": {
+        description: "Salta separando piernas y brazos, vuelve a la posición inicial.",
+        difficulty: "Baja",
+        intensity: "Media",
+        zone: "Piernas, hombros",
+        imageUrl: "https://example.com/jumping_jacks.jpg"
+      }
+      // Añade más ejercicios aquí...
+    };
+
+    let userCustomRoutine = null;
+    let exerciseInterval;
+    let currentExerciseIndex = 0;
+    let isPaused = false;
+    let progress = 0;
+
+    const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+    const today = new Date();
+    let currentYear = today.getFullYear();
+    let currentMonth = today.getMonth();
+
+    const calendarElement = document.getElementById("calendar");
+    const currentMonthElement = document.getElementById("currentMonth");
+    const exerciseModal = document.getElementById("exerciseModal");
+    const modalOverlay = document.getElementById("modalOverlay");
+    const exerciseList = document.getElementById("exerciseList");
+    const formModal = document.getElementById("formModal");
+    const calendarContainer = document.getElementById("calendarContainer");
+    const loadingMessage = document.getElementById("loadingMessage");
+    const calendarTitle = document.getElementById("calendarTitle");
+    const exerciseTimer = document.getElementById("exerciseTimer");
+    const progressBarFill = document.getElementById("progressBarFill");
+    const startExerciseBtn = document.getElementById("startExerciseBtn");
+    const pauseExerciseBtn = document.getElementById("pauseExerciseBtn");
+    const skipExerciseBtn = document.getElementById("skipExerciseBtn");
+    const endExerciseBtn = document.getElementById("endExerciseBtn");
+    const currentExerciseNumber = document.getElementById("currentExerciseNumber");
+
+    // Mostrar siempre el formulario al cargar la página
+    window.addEventListener('load', () => {
+      formModal.classList.add("active");
+      modalOverlay.classList.add("active");
+    });
+
+    document.getElementById('customRoutineForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const name = document.getElementById('name').value;
+      const zones = Array.from(document.querySelectorAll('.zone-checkbox:checked')).map(checkbox => checkbox.value);
+      const difficulty = document.getElementById('difficulty').value;
+      const routineType = document.getElementById('routineType').value;
+
+      if (zones.length === 0) {
+        alert("Por favor, selecciona al menos una zona del cuerpo");
+        return;
+      }
+
+      // Mostrar mensaje de carga
+      loadingMessage.style.display = "block";
+
+      // Simular el tiempo de procesamiento de la tabla de ejercicios
+      setTimeout(() => {
+        userCustomRoutine = { name, zones, difficulty, routineType };
+        localStorage.setItem("userRoutine", JSON.stringify(userCustomRoutine)); // Guardar en LocalStorage
+
+        // Actualizar el título del calendario
+        calendarTitle.textContent = `💪 Calendario de Entrenamiento de ${name}`;
+
+        // Ocultar formulario y mensaje de carga
+        formModal.classList.remove("active");
+        modalOverlay.classList.remove("active");
+        calendarContainer.style.display = "block";
+        loadingMessage.style.display = "none";
+
+        // Generar el calendario actualizado
+        generateCalendar(currentYear, currentMonth);
+      }, 2000); // 2 segundos para mostrar el mensaje "Preparando tabla"
+    });
+
+    document.getElementById('importRoutineFormBtn').addEventListener('click', () => {
+      document.getElementById('importRoutineInput').click();
+    });
+
+    document.getElementById('newRoutineBtn').addEventListener('click', () => {
+      const saveRoutine = confirm("¿Quieres guardar la rutina antes de crear una nueva?");
+      if (saveRoutine) {
+        exportRoutine();
+      } else {
+        formModal.classList.add("active");
+        modalOverlay.classList.add("active");
+        calendarContainer.style.display = "none";
+      }
+    });
+
+    function exportRoutine() {
+      const dataStr = JSON.stringify(userCustomRoutine);
+      const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+
+      const exportFileDefaultName = 'rutina.json';
+
+      const linkElement = document.createElement('a');
+      linkElement.setAttribute('href', dataUri);
+      linkElement.setAttribute('download', exportFileDefaultName);
+      linkElement.click();
+    }
+
+    function generateCalendar(year, month) {
+      calendarElement.innerHTML = "";
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+      currentMonthElement.textContent = `${monthNames[month]} ${year}`;
+
+      const offsetDays = firstDay === 0 ? 6 : firstDay - 1;
+      for (let i = 0; i < offsetDays; i++) {
+        calendarElement.innerHTML += '<div class="h-20"></div>';
+      }
+
+      let distributedZones = distributeZonesOverDays(daysInMonth, userCustomRoutine.zones);
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        let zone = distributedZones[day - 1];
+
+        calendarElement.innerHTML += `<div class="day bg-white rounded-lg shadow-lg p-6 text-center transition hover:scale-105" data-day="${day}" data-zone="${zone}">
+          <span class="block text-2xl font-bold text-gray-800">${day}</span>
+          <span class="block text-sm mt-2 text-gray-500">${zone}</span>
+        </div>`;
+      }
+
+      document.querySelectorAll(".day").forEach(dayElement => {
+        dayElement.addEventListener("click", function () {
+          const day = this.getAttribute("data-day");
+          const zone = this.getAttribute("data-zone");
+          showExercises(day, zone);
+        });
+      });
+    }
+
+    function distributeZonesOverDays(daysInMonth, selectedZones) {
+      let distributedDays = [];
+      let zoneIndex = 0;
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        distributedDays.push(selectedZones[zoneIndex]);
+        zoneIndex = (zoneIndex + 1) % selectedZones.length;  // Cambiar la zona en cada día
+      }
+
+      return distributedDays;
+    }
+
+    function showExercises(day, zone) {
+      let selectedExercises = Object.values(exercises).filter(ex => ex.zone.includes(zone)).slice(0, 4); // Elegir 4 ejercicios que correspondan a la zona
+
+      exerciseList.innerHTML = `<strong class="text-xl">Día ${day} - Zona: ${zone}</strong><br>`;
+      selectedExercises.forEach(exercise => {
+        exerciseList.innerHTML += `
+          <img src="${exercise.imageUrl}" alt="${exercise.zone}" class="exercise-image">
+          <p class="mt-2 text-gray-600"><strong>Ejercicio:</strong> ${exercise.zone}</p>
+          <p><strong>Descripción:</strong> ${exercise.description}</p>
+          <p><strong>Dificultad:</strong> ${exercise.difficulty}</p>
+          <p><strong>Intensidad:</strong> ${exercise.intensity}</p>
+          <hr>
+        `;
+      });
+
+      exerciseModal.classList.add("active");
+      modalOverlay.classList.add("active");
+    }
+
+    startExerciseBtn.addEventListener("click", function () {
+      startExerciseSession();
+    });
+
+    pauseExerciseBtn.addEventListener("click", function () {
+      isPaused = !isPaused;
+      if (isPaused) {
+        pauseExerciseBtn.textContent = "REANUDAR";
+        clearInterval(exerciseInterval);
+      } else {
+        pauseExerciseBtn.textContent = "PAUSA";
+        startExerciseSession(true);
+      }
+    });
+
+    skipExerciseBtn.addEventListener("click", function () {
+      clearInterval(exerciseInterval);
+      currentExerciseIndex++;
+      startExerciseSession();
+    });
+
+    endExerciseBtn.addEventListener("click", function () {
+      clearInterval(exerciseInterval);
+      exerciseTimer.style.display = "none";
+      progressBarFill.style.width = "0%";
+      startExerciseBtn.style.display = "block";
+      pauseExerciseBtn.style.display = "none";
+      skipExerciseBtn.style.display = "none";
+      endExerciseBtn.style.display = "none";
+      document.querySelector(`.day[data-day="${currentExerciseIndex + 1}"]`).classList.add("completed-day");
+    });
+
+    function startExerciseSession(resume = false) {
+      const selectedExercises = Object.values(exercises).slice(0, 4); // Simular la selección de ejercicios
+
+      if (!resume) {
+        currentExerciseIndex = 0;
+        progress = 0;
+      }
+
+      if (currentExerciseIndex >= selectedExercises.length) {
+        alert("Has completado todos los ejercicios del día");
+        endExerciseBtn.click();
+        return;
+      }
+
+      const totalExercises = 30 * 60 / 40; // Total number of exercises in 30 minutes
+      currentExerciseNumber.textContent = `Ejercicio ${currentExerciseIndex + 1} de ${totalExercises}`;
+      const currentExercise = selectedExercises[currentExerciseIndex % selectedExercises.length];
+      exerciseTimer.textContent = `Tiempo restante para el ejercicio: 30s`;
+      exerciseTimer.style.display = "block";
+      startExerciseBtn.style.display = "none";
+      pauseExerciseBtn.style.display = "block";
+      skipExerciseBtn.style.display = "block";
+      endExerciseBtn.style.display = "block";
+
+      let timeLeft = 30; // 30 seconds per exercise
+      let restTime = 10; // 10 seconds of rest
+      let isResting = false;
+
+      exerciseInterval = setInterval(() => {
+        if (!isPaused) {
+          if (!isResting) {
+            timeLeft--;
+            exerciseTimer.textContent = `Tiempo restante para el ejercicio: ${timeLeft}s`;
+            progress = ((30 - timeLeft) / 30) * 100;
+            progressBarFill.style.width = `${progress}%`;
+
+            if (timeLeft <= 0) {
+              isResting = true;
+              timeLeft = restTime;
+              exerciseTimer.textContent = `Descanso: ${timeLeft}s`;
+              progressBarFill.style.width = "0%";
+            }
+          } else {
+            timeLeft--;
+            exerciseTimer.textContent = `Descanso: ${timeLeft}s`;
+            if (timeLeft <= 0) {
+              isResting = false;
+              currentExerciseIndex++;
+              currentExerciseNumber.textContent = `Ejercicio ${currentExerciseIndex + 1} de ${totalExercises}`;
+              timeLeft = 30;
+              exerciseTimer.textContent = `Tiempo restante para el ejercicio: ${timeLeft}s`;
+            }
+          }
+        }
+      }, 1000);
+    }
+
+    // Cerrar modal al hacer clic en el botón "ENTENDIDO"
+    document.querySelector(".btn-entendido").addEventListener("click", function () {
+      exerciseModal.classList.remove("active");
+      modalOverlay.classList.remove("active");
+    });
+
+    // Cerrar modal al hacer clic fuera del modal
+    modalOverlay.addEventListener("click", function () {
+      exerciseModal.classList.remove("active");
+      modalOverlay.classList.remove("active");
+    });
+  </script>
+</body>
+</html>
